@@ -14,6 +14,8 @@ int main(int argc, char *argv[])
 		cout<<"Invalid number of arguments, please supply : inputfile outputfile timeLimitInSec\n";
 		return 0;
 	}
+
+	// Read input file
 	ifstream inputFile;
 	double start = omp_get_wtime(),limit =(double) strtof(argv[3],NULL);  //Time keeping
 	inputFile.open(argv[1]);
@@ -48,7 +50,7 @@ int main(int argc, char *argv[])
 	srand((int)(omp_get_wtime()));
 	int N1 = ((10*N*N)>10000)?10000:(10*N*N);
 	vector< vector<int> > chromos(N1, vector<int> (N,0));  //Complete set of chromosomes at any given point
-	vector< vector<int> > bests(BESTS, vector<int> (N,0)); //best set of chromosomes at any given point
+	vector< vector<int> > bests(BESTS, vector<int> (N,0)); //best set of chromosomes at any given point, 10 best chromosomes
 	int best = 0;
 	vector<float> fitness(N1,2000000000.0);                // Stoes chromosome tour distance
 	float maxfitness = 2000000000.0;
@@ -79,7 +81,7 @@ int main(int argc, char *argv[])
 		{
 			omp_set_lock(&lock4bests);  //Accessing best array safely
 			maxfitness = fitness[il];
-			best = (++best)%BESTS;
+			best = (++best)%BESTS; // Why ++best not best++?
 			bests[best] = chromos[il];
 			omp_unset_lock(&lock4bests);
 		}
@@ -94,26 +96,26 @@ int main(int argc, char *argv[])
 		}
 		GREEDY = (int)(100- (((float)iterations)/MAX_ITERS)*10);      //Reevaluate GREEDY, MUTATE percentages
 		MUTATE = (iterations<((4*MAX_ITERS)/5))?20:40;
-		#pragma omp master                                            //Print max fitness at current stage
+		#pragma omp master                                            //Print max fitness at current stage, 1000 chromosome per stage
 		{
 		if((iterations%1000==999)||(iterations%1000==0))cout<<iterations<<" ~ "<<GREEDY<<" ~ "<<MUTATE<<" ~ "<<maxfitness<<endl;
 		}
 		#pragma omp for nowait
 		for(int nb = 0;nb<BESTS;nb++)    							//Seeding for better fitness
 		{
-			int te = rand()%N1;
+			int te = rand()%N1;                                    // Put best 10 chromosomes to a random chromosome
 			omp_set_lock(locks+te);
 			chromos[te] = bests[nb];
 			omp_unset_lock(locks+te);	
 		}
-		#pragma omp for schedule(static,20)							//Core loop parallelised over threads
+		#pragma omp for schedule(static,20)							//Core loop parallelised over threads, per thread 20 iterations
 		for(int crossed = 0; crossed<=((3*N1)/4);crossed+=2)
 		{
 			int first=N1,second=N1;
 			bool gotFirst = false,gotSecond= false;                //Roulette wheel selection
 			while(!gotFirst)
 			{
-				first = rand()%N1;
+				first = rand()%N1;                                 // randomly select first
 				if((((rand()%1001)/(float)(1000)) < (maxfitness/fitness[first])))
 				{
 					gotFirst = true;
